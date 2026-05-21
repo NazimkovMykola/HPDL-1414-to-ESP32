@@ -12,6 +12,7 @@ const byte wrenPins[]  = {23};
 HPDL1414 hpdl(dataPins, addrPins, wrenPins, sizeof(wrenPins));
 
 void setup() {
+  Serial.begin(9600);
   hpdl.begin();
   hpdl.clear();
 }
@@ -19,6 +20,7 @@ void setup() {
 void loop() {
   // 1. Виведення цифр від 0 до 9
   for (int i = 0; i <= 9; i++) {
+    Serial.println("ESP32 успішно запустилася!");
     char buffer[5];
     snprintf(buffer, sizeof(buffer), "%d%d%d%d", i, i, i, i);
     hpdl.clear();

@@ -1,43 +1,87 @@
 #include <Arduino.h>
 #include <HPDL1414.h>
+#include <WiFi.h>
+#include "time.h"
 
-// Нова конфігурація пінів для ESP32
-// Порядок у масиві даних: D0, D1, D2, D3, D4, D5, D6
-const byte dataPins[7] = {13, 12, 14, 27, 5, 18, 19}; 
-// Піни адреси: A0, A1
-const byte addrPins[2] = {21, 22};               
-// Пін вибору/запису (!WR)
-const byte wrenPins[]  = {23};                  
+const char* ssid     = "Xiaomi_ANNA";
+const char* password = "23263483";
+
+const char* ntpServer  = "pool.ntp.org";
+const char* timeZone   = "EET-2EEST,M3.5.0/3,M10.5.0/4"; 
+
+const byte dataPins[7] = {13, 12, 14, 27, 5, 18, 19}; // D0, D1, D2, D3, D4, D5, D6
+const byte addrPins[2] = {21, 22};                   // A0, A1
+const byte wrenPins[]  = {23};                       // !WR
 
 HPDL1414 hpdl(dataPins, addrPins, wrenPins, sizeof(wrenPins));
 
+void scrollText(const char* text, int delayTime) {
+  int textLen = strlen(text);
+  
+  if (textLen <= 4) {
+    hpdl.clear();
+    hpdl.print(text);
+    return;
+  }
+
+  char displayBuf[5];
+  
+  for (int i = 0; i <= textLen - 4; i++) {
+    strncpy(displayBuf, text + i, 4);
+    displayBuf[4] = '\0';
+    
+    hpdl.clear();
+    hpdl.print(displayBuf);
+    delay(delayTime);
+  }
+}
+
 void setup() {
-  Serial.begin(9600);
+  Serial.begin(115200);
   hpdl.begin();
+  hpdl.clear();
+
+  hpdl.print("WIFI");
+  
+  WiFi.begin(ssid, password);
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+  Serial.println("\nWi-Fi підключено!");
+
+  configTzTime(timeZone, ntpServer);
+  
+  hpdl.clear();
+  hpdl.print("SYNC");
+  
+  struct tm timeinfo;
+  while (!getLocalTime(&timeinfo)) {
+    Serial.println("Очікування синхронізації часу...");
+    delay(500);
+  }
+  Serial.println("Час успішно отримано!");
   hpdl.clear();
 }
 
 void loop() {
-  // 1. Виведення цифр від 0 до 9
-  for (int i = 0; i <= 9; i++) {
-    Serial.println("ESP32 успішно запустилася!");
-    char buffer[5];
-    snprintf(buffer, sizeof(buffer), "%d%d%d%d", i, i, i, i);
-    hpdl.clear();
-    hpdl.print(buffer);
-    delay(600); 
+  struct tm timeinfo;
+  if (!getLocalTime(&timeinfo)) {
+    Serial.println("Не вдалося отримати час");
+    return;
   }
 
-  delay(1000);
+  char timeStr[5];
+  strftime(timeStr, sizeof(timeStr), "%H%M", &timeinfo);
+  
+  hpdl.clear();
+  hpdl.print(timeStr);
+  delay(5000); 
+  char scrollBuffer[50];
 
-  // 2. Ефект швидкого лічильника
-  for (int count = 0; count <= 99; count++) {
-    char buffer[5];
-    snprintf(buffer, sizeof(buffer), "%04d", count);
-    hpdl.clear();
-    hpdl.print(buffer);
-    delay(100); 
-  }
+  strftime(scrollBuffer, sizeof(scrollBuffer), "   %d.%m.%Y - %A   ", &timeinfo);
 
-  delay(2000);
+  scrollText(scrollBuffer, 300);
+  
+  delay(500); 
 }
